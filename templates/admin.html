@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard - Voting System</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f0f2f5, #e4e7ec);
+      color: #333;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .header h1 {
+      font-size: 2.4rem;
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #6c757d;
+    }
+
+    .section {
+      background: #f9fafc;
+      padding: 25px 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      border: 1px solid #dee2e6;
+    }
+
+    h2 {
+      color: #495057;
+      margin-bottom: 20px;
+    }
+
+    .input-group {
+      margin-bottom: 15px;
+    }
+
+    .input-group label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .button {
+      background-color: #0d6efd;
+      color: white;
+      padding: 10px 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.3s ease;
+    }
+
+    .button:hover {
+      background-color: #0b5ed7;
+    }
+
+    .button.danger {
+      background-color: #dc3545;
+    }
+
+    .button.danger:hover {
+      background-color: #bb2d3b;
+    }
+
+    .button:disabled {
+      background-color: #adb5bd;
+      cursor: not-allowed;
+    }
+
+    .candidate-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #fff;
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+    }
+
+    .candidate-item button {
+      padding: 5px 12px;
+      font-size: 0.9rem;
+      border-radius: 4px;
+      background-color: #e63946;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .candidate-item button:hover {
+      background-color: #c82333;
+    }
+
+    .error {
+      color: #e74c3c;
+      margin-top: 8px;
+    }
+
+    .success {
+      color: #28a745;
+      margin-top: 8px;
+    }
+
+    .help-text {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .timer {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-top: 20px;
+      color: #333;
+    }
+
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 1rem;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .styled-table thead tr {
+      background-color: #0d6efd;
+      color: #ffffff;
+      text-align: left;
+      font-weight: bold;
+    }
+
+    .styled-table th,
+    .styled-table td {
+      padding: 14px 20px;
+    }
+
+    .styled-table tbody tr {
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .styled-table tbody tr:nth-of-type(even) {
+      background-color: #f3f6f9;
+    }
+
+    .styled-table tbody tr:hover {
+      background-color: #e9f0fb;
+    }
+
+    .back-button {
+      display: inline-block;
+      padding: 10px 16px;
+      background: #e9ecef;
+      color: #333;
+      text-decoration: none;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      transition: background 0.3s;
+    }
+
+    .back-button:hover {
+      background: #d6d8db;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-button">← Back to Home</a>
+    <div class="header">
+      <h1>Admin Dashboard</h1>
+      <p>Manage Election and Candidates</p>
+    </div>
+
+    <div class="section">
+      <h2>Add Candidates</h2>
+      <div id="candidateInputs">
+        <div class="input-group">
+          <input type="text" id="candidateName" placeholder="Enter candidate name(s)">
+          <p class="help-text">Separate multiple candidate names with commas (e.g., "Kim, Lee, Park")</p>
+          <br>
+          <button class="button" onclick="addCandidateToList()">Add to List</button>
+        </div>
+      </div>
+      <div id="candidatesList"></div>
+      <button class="button" onclick="submitCandidates()">Submit All Candidates</button>
+      <div id="candidateMessage"></div>
+    </div>
+
+    <div class="section">
+      <h2>Current Candidates</h2>
+      <div id="currentCandidates"></div>
+    </div>
+
+    <div class="section">
+      <h2>Election Control</h2>
+      <div class="input-group">
+        <label for="votingDuration">Voting Duration (hours)</label>
+        <input type="number" id="votingDuration" min="1">
+      </div>
+      <div class="button-group">
+        <button class="button" onclick="startElection()">Start Election</button>
+        <button class="button danger" onclick="resetElection()">Reset Election</button>
+      </div>
+      <div id="electionStatus" class="timer"></div>
+      <div id="electionMessage"></div>
+    </div>
+  </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+    <script>
+        // Global variables
+        let candidates = [];
+        let contract;
+        let accounts;
+
+        // Initialize contract and accounts
+        async function initializeContract() {
+            try {
+                // First, fetch the contract info from the backend
+                const response = await fetch("/contract-address");
+                if (!response.ok) {
+                    throw new Error('Failed to fetch contract information');
+                }
+                const contractInfo = await response.json();
+                
+                // Initialize Web3
+                if (window.ethereum) {
+                    window.web3 = new Web3(window.ethereum);
+                    await window.ethereum.enable();
+                } else if (window.web3) {
+                    window.web3 = new Web3(window.web3.currentProvider);
+                } else {
+                    throw new Error('No Web3 provider detected');
+                }
+                
+                // Initialize the contract with the fetched ABI and address
+                contract = new web3.eth.Contract(
+                    contractInfo.abi,
+                    contractInfo.address
+                );
+                
+                accounts = await web3.eth.getAccounts();
+                
+                // Check if connected account is admin
+                const owner = await contract.methods.owner().call();
+                if (owner.toLowerCase() !== accounts[0].toLowerCase()) {
+                    alert('You are not authorized as admin');
+                    return false;
+                }
+                
+                // Initialize the page
+                await updateElectionStatus();
+                await loadCurrentCandidates();
+                return true;
+            } catch (error) {
+                console.error('Error initializing contract:', error);
+                return false;
+            }
+        }
+
+        // Add a candidate to the temporary list
+        function addCandidateToList() {
+            const input = document.getElementById('candidateName');
+            const inputText = input.value.trim();
+            
+            if (!inputText) {
+                showMessage('candidateMessage', 'Please enter a candidate name', 'error');
+                return;
+            }
+            
+            // Split by comma and trim each name
+            const namesArray = inputText.split(',').map(name => name.trim()).filter(name => name !== '');
+            
+            // Add each name to the candidates array
+            for (const name of namesArray) {
+                if (candidates.includes(name)) {
+                    showMessage('candidateMessage', `'${name}' is already in the list`, 'error');
+                } else {
+                    candidates.push(name);
+                }
+            }
+            
+            input.value = '';
+            updateCandidatesList();
+            
+            if (namesArray.length > 0) {
+                const message = namesArray.length === 1 
+                    ? 'Candidate added to list' 
+                    : `${namesArray.length} candidates added to list`;
+                showMessage('candidateMessage', message, 'success');
+            }
+        }
+
+        // Update the display of candidates in the temporary list
+        function updateCandidatesList() {
+            const list = document.getElementById('candidatesList');
+            list.innerHTML = candidates.map((candidate, index) => `
+                <div class="candidate-item">
+                    <span>${candidate}</span>
+                    <button class="button" onclick="removeCandidate(${index})">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        // Remove a candidate from the temporary list
+        function removeCandidate(index) {
+            candidates.splice(index, 1);
+            updateCandidatesList();
+        }
+
+        // Submit candidates to blockchain
+        async function submitCandidates() {
+            if (!contract) {
+                showMessage('candidateMessage', 'Contract not initialized', 'error');
+                return;
+            }
+            
+            if (!candidates.length) {
+                showMessage('candidateMessage', 'Please add at least one candidate', 'error');
+                return;
+            }
+
+            try {
+                await contract.methods.addCandidate(candidates).send({ from: accounts[0] });
+                showMessage('candidateMessage', 'Candidates added successfully', 'success');
+                candidates = [];
+                updateCandidatesList();
+                loadCurrentCandidates();
+            } catch (error) {
+                showMessage('candidateMessage', 'Error adding candidates: ' + error.message, 'error');
+            }
+        }
+
+        // Start the election
+        async function startElection() {
+            if (!contract) {
+                showMessage('electionMessage', 'Contract not initialized', 'error');
+                return;
+            }
+
+            const duration = document.getElementById('votingDuration').value;
+            if (!duration || duration <= 0) {
+                showMessage('electionMessage', 'Please enter a valid duration', 'error');
+                return;
+            }
+
+            try {
+                const durationInSeconds = duration * 60;
+                await contract.methods.startElection(durationInSeconds).send({ from: accounts[0] });
+                showMessage('electionMessage', 'Election started successfully', 'success');
+                updateElectionStatus();
+            } catch (error) {
+                showMessage('electionMessage', 'Error starting election: ' + error.message, 'error');
+            }
+        }
+
+        // Reset the election
+        async function resetElection() {
+            if (!contract) {
+                showMessage('electionMessage', 'Contract not initialized', 'error');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to reset the election? This will delete all candidates and voter data.')) {
+                return;
+            }
+
+            try {
+                await contract.methods.resetElection().send({ from: accounts[0] });
+                showMessage('electionMessage', 'Election reset successfully', 'success');
+                candidates = [];
+                updateCandidatesList();
+                await loadCurrentCandidates();
+                await updateElectionStatus();
+            } catch (error) {
+                showMessage('electionMessage', 'Error resetting election: ' + error.message, 'error');
+            }
+        }
+
+        // Load current candidates from blockchain
+        async function loadCurrentCandidates() {
+            if (!contract) return;
+
+            try {
+                const candidatesList = await contract.methods.retrieveVotes().call();
+                const currentCandidatesDiv = document.getElementById('currentCandidates');
+
+                if (candidatesList.length === 0) {
+                currentCandidatesDiv.innerHTML = '<p>No candidates added yet.</p>';
+                return;
+                }
+
+                currentCandidatesDiv.innerHTML = `
+                <table class="styled-table">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    ${candidatesList.map((candidate, index) => `
+                        <tr>
+                        <td>${index}</td>
+                        <td>${candidate.name}</td>
+                        </tr>
+                    `).join('')}
+                    </tbody>
+                </table>
+                `;
+            } catch (error) {
+                console.error('Error loading candidates:', error);
+            }
+        }
+
+        // Update election status and timer
+        async function updateElectionStatus() {
+            if (!contract) return;
+            
+            try {
+                const isOngoing = await contract.methods.checkElectionPeriod().call();
+                if (isOngoing) {
+                    const timer = await contract.methods.electionTimer().call();
+                    updateTimer(timer);
+                } else {
+                    document.getElementById('electionStatus').textContent = 'No active election';
+                }
+            } catch (error) {
+                console.error('Error updating election status:', error);
+            }
+        }
+
+        // Display messages (success/error)
+        function showMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = type;
+            
+            // Clear message after 3 seconds
+            setTimeout(() => {
+                element.textContent = '';
+                element.className = '';
+            }, 3000);
+        }
+
+        // Update the timer display
+        function updateTimer(timeLeft) {
+            const timerElement = document.getElementById('electionStatus');
+            if (timeLeft <= 0) {
+                timerElement.textContent = 'Election has ended';
+                return;
+            }
+            
+            const hours = Math.floor(timeLeft / 3600);
+            const minutes = Math.floor((timeLeft % 3600) / 60);
+            const seconds = timeLeft % 60;
+            
+            timerElement.textContent = `Time remaining: ${hours}h ${minutes}m ${seconds}s`;
+            
+            // Update every second if election is ongoing
+            setTimeout(() => {
+                if (timeLeft > 0) {
+                    updateTimer(timeLeft - 1);
+                }
+            }, 1000);
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', async () => {
+            const initialized = await initializeContract();
+            if (!initialized) {
+                showMessage('candidateMessage', 'Failed to initialize contract', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

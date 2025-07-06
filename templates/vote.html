@@ -1,0 +1,539 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vote</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        input, select {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            background: #2ecc71;
+            color: white;
+            grid-column: span 2;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #voteStatus {
+            grid-column: span 2;
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        @media (max-width: 768px) {
+            form {
+                grid-template-columns: 1fr;
+            }
+
+            button {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cast Your Vote</h1>
+        <form id="votingForm">
+            <div class="form-group">
+                <label for="candidateId">Candidate ID</label>
+                <input type="number" id="candidateId" required>
+            </div>
+
+            <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="voterId">Voter ID</label>
+                <input type="text" id="voterId" required>
+            </div>
+
+            <div class="form-group">
+                <label for="uniqueId">Unique ID</label>
+                <input type="text" id="uniqueId" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phoneNumber">Phone Number</label>
+                <input type="tel" id="phoneNumber" required>
+            </div>
+
+            <div class="form-group">
+                <label for="age">Age</label>
+                <input type="number" id="age" min="18" required>
+            </div>
+
+            <div class="form-group">
+                <label for="gender">Gender</label>
+                <select id="gender" required>
+                    <option value="" disabled selected>Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+            </div>
+
+            <button type="button" id="voteButton">Cast Vote</button>
+        </form>
+
+        <div id="voteStatus"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.3/dist/web3.min.js"></script>
+    <script>
+        const voteButton = document.getElementById('voteButton');
+        const voteStatus = document.getElementById('voteStatus');
+
+        // Handle voting
+        voteButton.addEventListener('click', async function() {
+            try {
+                // Get form data
+                const formData = {
+                    candidateId: document.getElementById('candidateId').value,
+                    name: document.getElementById('name').value,
+                    voterId: document.getElementById('voterId').value,
+                    uniqueId: document.getElementById('uniqueId').value,
+                    phoneNumber: document.getElementById('phoneNumber').value,
+                    age: document.getElementById('age').value,
+                    gender: document.getElementById('gender').value
+                };
+
+                // Connect to MetaMask
+                if (typeof window.ethereum === "undefined") {
+                    throw new Error("Please install MetaMask to vote");
+                }
+
+                const web3 = new Web3(window.ethereum);
+                const accounts = await window.ethereum.request({ 
+                    method: "eth_requestAccounts" 
+                });
+
+                // Load contract
+                const response = await fetch("/contract-address");
+                const contractData = await response.json();
+                const contract = new web3.eth.Contract(contractData.abi, contractData.address);
+
+                // Submit vote
+                await contract.methods.voteTo(
+                    formData.candidateId,
+                    formData.name,
+                    formData.voterId,
+                    web3.utils.asciiToHex(formData.uniqueId),
+                    formData.phoneNumber,
+                    ""  // Empty string for image hash since we removed camera functionality
+                ).send({ from: accounts[0] });
+
+                voteStatus.innerHTML = "Vote cast successfully!";
+                voteStatus.className = "status-success";
+                
+                // Reset form
+                document.getElementById('votingForm').reset();
+
+            } catch (error) {
+                console.error("Voting error:", error);
+                voteStatus.innerHTML = "Error casting vote: " + error.message;
+                voteStatus.className = "status-error";
+            }
+        });
+    </script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cast Your Vote</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 2.2em;
+    }
+
+    form {
+      display: grid;
+      grid-gap: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-weight: 500;
+      color: #555;
+      margin-bottom: 5px;
+    }
+
+    input, select {
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #4facfe;
+      box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      background: #2ecc71;
+      color: white;
+      font-size: 15px;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+
+    .vote-btn-inline {
+        background: #3498db;
+        padding: 6px 12px;
+        font-size: 13px;
+        border: none;
+        border-radius: 5px;
+        color: white;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+    .vote-btn-inline:hover {
+        background-color: #2980b9;
+    }
+
+    #voteStatus {
+      text-align: center;
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .status-success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    .status-error {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+
+    .back-button {
+      display: inline-block;
+      padding: 8px 15px;
+      background: #f8f9fa;
+      color: #333;
+      text-decoration: none;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      transition: background 0.3s;
+    }
+
+    .back-button:hover {
+      background: #e2e6ea;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px 8px;
+      text-align: center;
+      border-bottom: 1px solid #ccc;
+      vertical-align: middle;
+    }
+    th {
+      background-color: #f4f4f4;
+      font-weight: 600;
+    }
+
+    #candidateList {
+      margin-bottom: 30px;
+    }
+
+    .center {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-button">← Back to Home</a>
+    <h1>Cast Your Vote</h1>
+
+    <div id="candidateList">
+      <h2 style="font-size: 1.2em; color: #333; margin-bottom: 10px;">Available Candidates</h2>
+      <div id="candidatesDisplay" style="background: #f0f0f0; padding: 15px; border-radius: 10px;">
+        <p>Loading candidates...</p>
+      </div>
+    </div>
+
+    <form id="votingForm">
+      <div class="form-group">
+        <label for="candidateId">Candidate ID</label>
+        <input type="number" id="candidateId" required placeholder="Enter candidate ID or click 'Vote' beside a candidate">
+      </div>
+
+      <div class="form-group">
+        <label for="name">Your Full Name</label>
+        <input type="text" id="name" required placeholder="Enter your registered name">
+      </div>
+
+      <div class="form-group">
+        <label for="voterId">Voter ID</label>
+        <input type="text" id="voterId" required placeholder="Enter your voter ID">
+      </div>
+
+      <div class="form-group">
+        <label for="uniqueId">Unique ID</label>
+        <input type="text" id="uniqueId" required placeholder="Enter your unique ID">
+      </div>
+
+      <div class="form-group">
+        <label for="phoneNumber">Phone Number</label>
+        <input type="tel" id="phoneNumber" required placeholder="Enter your phone number">
+      </div>
+
+      <button type="button" id="voteButton">Cast Vote</button>
+    </form>
+
+    <div id="voteStatus"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.7.3/dist/web3.min.js"></script>
+  <script>
+    const voteButton = document.getElementById('voteButton');
+    const voteStatus = document.getElementById('voteStatus');
+    let contract;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (typeof window.ethereum === "undefined") {
+        alert("Please install MetaMask to use this app.");
+        return;
+      }
+
+      const web3 = new Web3(window.ethereum);
+      const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+
+      const response = await fetch("/contract-address");
+      const contractData = await response.json();
+      contract = new web3.eth.Contract(contractData.abi, contractData.address);
+
+      loadCandidates();
+    });
+
+    async function loadCandidates() {
+      try {
+        const candidates = await contract.methods.retrieveVotes().call();
+        const container = document.getElementById("candidatesDisplay");
+
+        if (!candidates || candidates.length === 0) {
+          container.innerHTML = "<p>No candidates available.</p>";
+          return;
+        }
+
+        const rows = candidates.map((c, i) => `
+          <tr>
+            <td>${i}</td>
+            <td>${c.name}</td>
+            <td><button class="vote-btn-inline" onclick="selectCandidate(${i})">Vote</button></td>
+          </tr>
+        `).join("");
+
+        container.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      } catch (err) {
+        document.getElementById("candidatesDisplay").innerHTML = "<p style='color:red;'>Error loading candidates.</p>";
+        console.error("Candidate loading error:", err);
+      }
+    }
+
+    function selectCandidate(id) {
+      document.getElementById("candidateId").value = id;
+      document.getElementById("candidateId").scrollIntoView({ behavior: "smooth" });
+    }
+
+    voteButton.addEventListener('click', async function() {
+      try {
+        const formData = {
+          candidateId: document.getElementById('candidateId').value,
+          name: document.getElementById('name').value,
+          voterId: document.getElementById('voterId').value,
+          uniqueId: document.getElementById('uniqueId').value,
+          phoneNumber: document.getElementById('phoneNumber').value
+        };
+
+        if (!formData.candidateId || !formData.name || !formData.voterId || 
+            !formData.uniqueId || !formData.phoneNumber) {
+          throw new Error("All fields are required");
+        }
+
+        const web3 = new Web3(window.ethereum);
+        const accounts = await window.ethereum.request({ 
+          method: "eth_requestAccounts" 
+        });
+
+        voteStatus.innerHTML = "Processing your vote...";
+        voteStatus.className = "";
+
+        await contract.methods.voteTo(
+          formData.candidateId,
+          formData.name,
+          formData.voterId,
+          web3.utils.asciiToHex(formData.uniqueId),
+          formData.phoneNumber
+        ).send({ from: accounts[0] });
+
+        voteStatus.innerHTML = "Vote cast successfully!";
+        voteStatus.className = "status-success";
+        document.getElementById('votingForm').reset();
+
+      } catch (error) {
+        console.error("Voting error:", error);
+        voteStatus.innerHTML = "Error casting vote: " + error.message;
+        voteStatus.className = "status-error";
+      }
+    });
+  </script>
+</body>
+</html>

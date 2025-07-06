@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voting App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            font-family: "Poppins", sans-serif;
+            background: #051a65;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        .marquee-container {
+            background: #ff2e63;
+            padding: 10px 0;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            white-space: nowrap;
+        }
+
+        #connectWallet {
+            background: linear-gradient(135deg, #ff8c00, #ff2e63);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: 0.3s;
+            margin-top: 20px;
+        }
+
+        #connectWallet:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(255, 46, 99, 0.5);
+        }
+
+        #walletAddress {
+            font-size: 18px;
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        #content {
+            display: none;
+            margin-top: 20px;
+        }
+
+        nav {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-top: 20px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 18px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        nav a:hover {
+            color: #ff2e63;
+        }
+
+        #adminNav {
+            display: none;
+        }
+
+        .election-status-card {
+            background: #1a1a1a;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 400px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+
+        .status-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+        }
+
+        .status-message {
+            color: #4CAF50;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .timer-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .timer-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .timer-value {
+            background: #2a2a2a;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff8c00;
+            min-width: 60px;
+        }
+
+        .timer-label {
+            margin-top: 4px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="marquee-container">
+        <marquee behavior="scroll" direction="left">🚀 Please connect your wallet to access the voting system! 🚀</marquee>
+    </div>
+
+    <button id="connectWallet">Connect Wallet</button>
+    <p id="walletAddress" style="display: none;"></p>
+
+    <div class="election-status-card">
+        <div class="status-container">
+            <div id="statusIcon" class="status-dot"></div>
+            <div id="statusMessage" class="status-message">Election is Active</div>
+        </div>
+        <div id="timer" class="timer-display"></div>
+    </div>
+
+    <div id="content">
+        <h1>Welcome to the Voting App</h1>
+        <nav>
+            <a href="{{ url_for('register') }}">Register</a>
+            <a href="{{ url_for('check') }}">Vote</a>
+        </nav>
+        <nav id="adminNav">
+            <a href="{{ url_for('admin_dashboard') }}">Admin</a>
+            <a href="{{ url_for('voters') }}">Statistics</a>
+            <a href="{{ url_for('results') }}">Results</a>
+            
+        </nav>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.8.2/web3.min.js"></script>
+    <script>
+        let votingContract;
+        let web3;
+        let contractABI;
+        let contractAddress;
+        let electionCheckInterval;
+        let timerInterval;
+
+        async function loadContractData() {
+            try {
+                const response = await fetch("/contract-address");
+                const data = await response.json();
+                contractABI = data.abi;
+                contractAddress = data.address;
+
+                if (!contractABI || !contractAddress) {
+                    console.error("Error: Contract ABI or Address is missing.");
+                    alert("Failed to load contract details.");
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                console.error("Error fetching contract data:", error);
+                alert("Error loading contract details.");
+                return false;
+            }
+        }
+
+        async function checkIfAdmin(userAddress) {
+            try {
+                const owner = await votingContract.methods.owner().call();
+                return owner.toLowerCase() === userAddress.toLowerCase();
+            } catch (error) {
+                console.error("Error checking admin status:", error);
+                return false;
+            }
+        }
+
+        function formatTimeSection(value, label) {
+            return `
+                <div class="timer-section">
+                    <div class="timer-value">${value.toString().padStart(2, '0')}</div>
+                    <div class="timer-label">${label}</div>
+                </div>
+            `;
+        }
+
+        function updateTimerDisplay(timeLeft) {
+            const timerElement = document.getElementById("timer");
+            if (timeLeft <= 0) {
+                timerElement.innerHTML = "";
+                return;
+            }
+
+            const hours = Math.floor(timeLeft / 3600);
+            const minutes = Math.floor((timeLeft % 3600) / 60);
+            const seconds = timeLeft % 60;
+
+            timerElement.innerHTML = `
+                ${formatTimeSection(hours, 'hours')}
+                ${formatTimeSection(minutes, 'mins')}
+                ${formatTimeSection(seconds, 'secs')}
+            `;
+        }
+
+        async function checkElectionStatus() {
+            try {
+                const statusElement = document.getElementById("statusMessage");
+                const statusIcon = document.getElementById("statusIcon");
+                const statusCard = document.querySelector('.election-status-card');
+                
+                statusCard.style.display = 'block';
+                
+                const isOngoing = await votingContract.methods.checkElectionPeriod().call();
+                
+                if (isOngoing) {
+                    statusIcon.style.backgroundColor = '#4CAF50';
+                    statusElement.textContent = "Election is Active";
+                    statusElement.style.color = '#4CAF50';
+                    
+                    const timeLeft = await votingContract.methods.electionTimer().call();
+                    const timeLeftInt = parseInt(timeLeft);
+                    
+                    if (timerInterval) clearInterval(timerInterval);
+                    
+                    if (timeLeftInt > 0) {
+                        let currentTime = timeLeftInt;
+                        updateTimerDisplay(currentTime);
+                        
+                        timerInterval = setInterval(() => {
+                            currentTime--;
+                            if (currentTime <= 0) {
+                                clearInterval(timerInterval);
+                                checkElectionStatus();
+                            } else {
+                                updateTimerDisplay(currentTime);
+                            }
+                        }, 1000);
+                    }
+                } else {
+                    statusIcon.style.backgroundColor = '#ff2e63';
+                    statusElement.textContent = "No Active Election";
+                    statusElement.style.color = '#ff2e63';
+                    if (timerInterval) clearInterval(timerInterval);
+                    document.getElementById("timer").innerHTML = "";
+                }
+            } catch (error) {
+                console.error("Error checking election status:", error);
+            }
+        }
+
+        document.getElementById("connectWallet").addEventListener("click", async () => {
+            if (typeof window.ethereum === "undefined") {
+                alert("Please install MetaMask!");
+                return;
+            }
+
+            try {
+                if (!await loadContractData()) return;
+
+                web3 = new Web3(window.ethereum);
+                votingContract = new web3.eth.Contract(contractABI, contractAddress);
+
+                const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+                if (accounts.length > 0) {
+                    const walletAddress = accounts[0];
+
+                    document.getElementById("walletAddress").innerText = "Connected Wallet: " + walletAddress;
+                    document.getElementById("walletAddress").style.display = "block";
+
+                    const isAdmin = await checkIfAdmin(walletAddress);
+                    document.getElementById("adminNav").style.display = isAdmin ? "block" : "none";
+
+                    document.getElementById("connectWallet").style.display = "none";
+                    document.getElementById("content").style.display = "block";
+
+                    await checkElectionStatus();
+                    
+                    if (electionCheckInterval) clearInterval(electionCheckInterval);
+                    electionCheckInterval = setInterval(checkElectionStatus, 10000);
+                }
+            } catch (error) {
+                console.error("Wallet connection failed:", error);
+                alert("Wallet connection failed.");
+            }
+        });
+
+        if (window.ethereum) {
+            window.ethereum.on("accountsChanged", async (accounts) => {
+                if (accounts.length > 0) {
+                    const walletAddress = accounts[0];
+                    document.getElementById("walletAddress").innerText = "Connected Wallet: " + walletAddress;
+
+                    const isAdmin = await checkIfAdmin(walletAddress);
+                    document.getElementById("adminNav").style.display = isAdmin ? "block" : "none";
+                    
+                    await checkElectionStatus();
+                } else {
+                    document.getElementById("content").style.display = "none";
+                    document.getElementById("connectWallet").style.display = "block";
+                    document.getElementById("walletAddress").style.display = "none";
+                    document.getElementById("adminNav").style.display = "none";
+                    document.querySelector('.election-status-card').style.display = 'none';
+                    if (electionCheckInterval) clearInterval(electionCheckInterval);
+                    if (timerInterval) clearInterval(timerInterval);
+                }
+            });
+
+            // Check if already connected when page loads
+            window.ethereum.request({ method: 'eth_accounts' })
+                .then(async (accounts) => {
+                    if (accounts.length > 0) {
+                        const walletAddress = accounts[0];
+                        document.getElementById("walletAddress").innerText = "Connected Wallet: " + walletAddress;
+                        document.getElementById("walletAddress").style.display = "block";
+                        document.getElementById("connectWallet").style.display = "none";
+                        document.getElementById("content").style.display = "block";
+
+                        web3 = new Web3(window.ethereum);
+                        await loadContractData();
+                        votingContract = new web3.eth.Contract(contractABI, contractAddress);
+
+                        const isAdmin = await checkIfAdmin(walletAddress);
+                        document.getElementById("adminNav").style.display = isAdmin ? "block" : "none";
+
+                        await checkElectionStatus();
+                        if (electionCheckInterval) clearInterval(electionCheckInterval);
+                        electionCheckInterval = setInterval(checkElectionStatus, 10000);
+                    }
+                });
+        }
+    </script>
+</body>
+</html>

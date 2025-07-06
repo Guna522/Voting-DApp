@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Election Statistics Dashboard</title>
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+	<style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        h1:after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 4px;
+            background: #007bff;
+            margin: 10px auto;
+        }
+
+        .voters-table {
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .voters-table th,
+        .voters-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .voters-table th {
+            background: #007bff;
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+
+        .voters-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .voters-table td {
+            color: #2c3e50;
+        }
+
+        .back-button {
+            display: inline-block;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .voter-image {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .status-voted {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-not-voted {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #007bff;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            font-size: 1.1em;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .gender-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .gender-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .gender-title {
+            font-size: 1.2em;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            border-radius: 10px;
+            transition: width 0.5s ease-in-out;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            color: #2c3e50;
+        }
+
+        .summary-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .summary-title {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        #loadingSpinner {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #007bff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            /* Reduced height for smaller charts */
+            height: 300px;
+        }
+
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            /* Reduced height for smaller charts */
+            height: 260px;
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            height: 200px; /* Fixed height for chart area */
+            position: relative;
+        }
+
+        h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-button">← Back to Home</a>
+        <h1>Election Statistics</h1>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Total Registered Voters</div>
+                <div class="metric-value" id="totalVoters">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Total Votes Cast</div>
+                <div class="metric-value" id="totalVoted">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Overall Participation</div>
+                <div class="metric-value" id="participationRate">0%</div>
+            </div>
+        </div>
+        
+        <!-- Charts Section -->
+        <div class="charts-container">
+            <div class="chart-container">
+                <h3>Voter Registration and Participation by Gender</h3>
+                <div class="chart-wrapper">
+                    <canvas id="genderBarChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-row">
+                <div class="chart-card">
+                    <h3>Gender Distribution</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="genderPieChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Overall Participation</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="participationPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gender Statistics -->
+        <div class="gender-section">
+            <div class="gender-card">
+                <div class="gender-title">Male Voters</div>
+                <div class="stat-row">
+                    <span>Total Registered:</span>
+                    <span id="maleVoters">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Votes Cast:</span>
+                    <span id="maleVoted">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Participation Rate:</span>
+                    <span id="maleParticipation">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="maleProgress" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="gender-card">
+                <div class="gender-title">Female Voters</div>
+                <div class="stat-row">
+                    <span>Total Registered:</span>
+                    <span id="femaleVoters">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Votes Cast:</span>
+                    <span id="femaleVoted">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Participation Rate:</span>
+                    <span id="femaleParticipation">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="femaleProgress" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loadingSpinner">
+            <div class="spinner"></div>
+        </div>
+        <table class="voters-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Voter ID</th>
+                    <th>Age</th>
+                    <th>Gender</th>
+                    <th>Phone Number</th>
+                    <th>Voting Status</th>
+                </tr>
+            </thead>
+            <tbody id="votersTableBody">
+                <!-- Voter data will be populated here dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+	<script type="text/javascript">
+	const contractABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "string[]",
+				"name": "_names",
+				"type": "string[]"
+			}
+		],
+		"name": "addCandidate",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			}
+		],
+		"name": "CandidateAdded",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "voter",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "voterId",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "uniqueId",
+				"type": "bytes32"
+			}
+		],
+		"name": "Debug",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "votingEnd",
+				"type": "uint256"
+			}
+		],
+		"name": "ElectionStarted",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_name",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_voterId",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "_uniqueId",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "string",
+				"name": "_phoneNumber",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_imageUrl",
+				"type": "string"
+			},
+			{
+				"internalType": "uint8",
+				"name": "_age",
+				"type": "uint8"
+			},
+			{
+				"internalType": "string",
+				"name": "_gender",
+				"type": "string"
+			}
+		],
+		"name": "registerVoter",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "resetAllVoterStatus",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "resetElection",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_votingDuration",
+				"type": "uint256"
+			}
+		],
+		"name": "startElection",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "voter",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "candidateId",
+				"type": "uint256"
+			}
+		],
+		"name": "Voted",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "voter",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "voterId",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "uniqueId",
+				"type": "bytes32"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "phoneNumber",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "imageUrl",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "age",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "gender",
+				"type": "string"
+			}
+		],
+		"name": "VoterRegistered",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "_name",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "_voterId",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "_uniqueId",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "string",
+				"name": "_phoneNumber",
+				"type": "string"
+			}
+		],
+		"name": "voteTo",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "candidates",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "numberOfVotes",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "checkElectionPeriod",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "electionStarted",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "electionTimer",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_voter",
+				"type": "address"
+			}
+		],
+		"name": "getStoredUniqueId",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_voter",
+				"type": "address"
+			}
+		],
+		"name": "getVoterDetails",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "voterId",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "uniqueId",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "string",
+				"name": "phoneNumber",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "imageUrl",
+				"type": "string"
+			},
+			{
+				"internalType": "uint8",
+				"name": "age",
+				"type": "uint8"
+			},
+			{
+				"internalType": "string",
+				"name": "gender",
+				"type": "string"
+			},
+			{
+				"internalType": "bool",
+				"name": "hasVoted",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_voter",
+				"type": "address"
+			}
+		],
+		"name": "getVoterStatus",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "hasVoted",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "listOfVoters",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "MINIMUM_AGE",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "retrieveVotes",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "uint256",
+						"name": "id",
+						"type": "uint256"
+					},
+					{
+						"internalType": "string",
+						"name": "name",
+						"type": "string"
+					},
+					{
+						"internalType": "uint256",
+						"name": "numberOfVotes",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct Voting.Candidate[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"name": "uniqueIdToAddress",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"name": "usedVoterIds",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "voterDetails",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "voterId",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "uniqueId",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "string",
+				"name": "phoneNumber",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "imageUrl",
+				"type": "string"
+			},
+			{
+				"internalType": "uint8",
+				"name": "age",
+				"type": "uint8"
+			},
+			{
+				"internalType": "string",
+				"name": "gender",
+				"type": "string"
+			},
+			{
+				"internalType": "bool",
+				"name": "registered",
+				"type": "bool"
+			},
+			{
+				"internalType": "bool",
+				"name": "hasVoted",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_voter",
+				"type": "address"
+			}
+		],
+		"name": "voterStatus",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "votingEnd",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "votingStart",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
+		const contractAddress = '0xa4c3043e52c6855e1bea829c389a83fe643e68e1';
+        let provider, contract, signer;
+        
+        // Chart.js instances
+        let genderBarChart, genderPieChart, participationPieChart;
+
+        async function initializeContract() {
+            try {
+                // Check if ethereum provider is available
+                if (window.ethereum) {
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                    await provider.send("eth_requestAccounts", []);
+                    const accounts = await provider.listAccounts();
+                    signer = provider.getSigner(accounts[0]);
+                    contract = new ethers.Contract(contractAddress, contractABI, signer);
+                    return true;
+                } else {
+                    console.error("Ethereum provider not found");
+                    alert("Please install MetaMask or another Ethereum wallet to view voter details.");
+                    return false;
+                }
+            } catch (error) {
+                console.error("Error initializing contract:", error);
+                alert("Please connect your wallet to view voter details.");
+                return false;
+            }
+        }
+
+        // Create and update charts
+        function initializeCharts() {
+            // Common options for all charts
+            Chart.defaults.font.size = 11; // Smaller font size
+            
+            // Create Bar Chart for Gender Registration and Participation
+            const genderBarCtx = document.getElementById('genderBarChart').getContext('2d');
+            genderBarChart = new Chart(genderBarCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Male', 'Female'],
+                    datasets: [
+                        {
+                            label: 'Registered Voters',
+                            data: [0, 0],
+                            backgroundColor: 'rgba(0, 136, 254, 0.7)',
+                            borderColor: 'rgba(0, 136, 254, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Votes Cast',
+                            data: [0, 0],
+                            backgroundColor: 'rgba(0, 196, 159, 0.7)',
+                            borderColor: 'rgba(0, 196, 159, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                boxWidth: 12,
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Create Pie Chart for Gender Distribution
+            const genderPieCtx = document.getElementById('genderPieChart').getContext('2d');
+            genderPieChart = new Chart(genderPieCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Male', 'Female'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: [
+                            'rgba(0, 136, 254, 0.7)',
+                            'rgba(255, 87, 51, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(0, 136, 254, 1)',
+                            'rgba(255, 87, 51, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const value = context.raw;
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${context.label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Create Pie Chart for Participation
+            const participationPieCtx = document.getElementById('participationPieChart').getContext('2d');
+            participationPieChart = new Chart(participationPieCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Voted', 'Not Voted'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: [
+                            'rgba(0, 196, 159, 0.7)',
+                            'rgba(255, 193, 7, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(0, 196, 159, 1)',
+                            'rgba(255, 193, 7, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const value = context.raw;
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${context.label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update charts with new data
+        function updateCharts(totalVoters, totalVoted, maleVoters, femaleVoters, maleVoted, femaleVoted) {
+            // Update Gender Bar Chart
+            genderBarChart.data.datasets[0].data = [maleVoters, femaleVoters];
+            genderBarChart.data.datasets[1].data = [maleVoted, femaleVoted];
+            genderBarChart.update();
+            
+            // Update Gender Pie Chart
+            genderPieChart.data.datasets[0].data = [maleVoters, femaleVoters];
+            genderPieChart.update();
+            
+            // Update Participation Pie Chart
+            participationPieChart.data.datasets[0].data = [totalVoted, totalVoters - totalVoted];
+            participationPieChart.update();
+        }
+
+        async function updateMetrics(voters) {
+            let totalVoters = 0;
+            let totalVoted = 0;
+            let maleVoters = 0;
+            let femaleVoters = 0;
+            let maleVoted = 0;
+            let femaleVoted = 0;
+
+            for (const voterAddress of voters) {
+                const voterDetails = await contract.getVoterDetails(voterAddress);
+                totalVoters++;
+                
+                if (voterDetails.hasVoted) {
+                    totalVoted++;
+                }
+
+                if (voterDetails.gender.toLowerCase() === 'male') {
+                    maleVoters++;
+                    if (voterDetails.hasVoted) maleVoted++;
+                } else if (voterDetails.gender.toLowerCase() === 'female') {
+                    femaleVoters++;
+                    if (voterDetails.hasVoted) femaleVoted++;
+                }
+            }
+
+            const overallParticipation = totalVoters > 0 ? ((totalVoted / totalVoters) * 100).toFixed(1) : 0;
+            const maleParticipation = maleVoters > 0 ? ((maleVoted / maleVoters) * 100).toFixed(1) : 0;
+            const femaleParticipation = femaleVoters > 0 ? ((femaleVoted / femaleVoters) * 100).toFixed(1) : 0;
+
+            // Update DOM elements
+            document.getElementById('totalVoters').textContent = totalVoters;
+            document.getElementById('totalVoted').textContent = totalVoted;
+            document.getElementById('participationRate').textContent = overallParticipation + '%';
+            
+            document.getElementById('maleVoters').textContent = maleVoters;
+            document.getElementById('maleVoted').textContent = maleVoted;
+            document.getElementById('maleParticipation').textContent = maleParticipation + '%';
+            document.getElementById('maleProgress').style.width = maleParticipation + '%';
+            
+            document.getElementById('femaleVoters').textContent = femaleVoters;
+            document.getElementById('femaleVoted').textContent = femaleVoted;
+            document.getElementById('femaleParticipation').textContent = femaleParticipation + '%';
+            document.getElementById('femaleProgress').style.width = femaleParticipation + '%';
+            
+            // Update the charts
+            updateCharts(totalVoters, totalVoted, maleVoters, femaleVoters, maleVoted, femaleVoted);
+        }
+
+        async function displayVoters() {
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const tableBody = document.getElementById('votersTableBody');
+            
+            try {
+                loadingSpinner.style.display = 'flex';
+                let voterIndex = 0;
+                const voters = [];
+                
+                // Fetch all voters from the contract
+                while (true) {
+                    try {
+                        const voterAddress = await contract.listOfVoters(voterIndex);
+                        if (voterAddress === '0x0000000000000000000000000000000000000000') {
+                            break;
+                        }
+                        voters.push(voterAddress);
+                        voterIndex++;
+                    } catch (error) {
+                        console.log("Reached end of voters list or encountered an error.");
+                        break;
+                    }
+                }
+                
+                // Update the metrics with the fetched voters
+                await updateMetrics(voters);
+                
+                // Clear existing table rows
+                tableBody.innerHTML = '';
+
+                // Add each voter to the table
+                for (const voterAddress of voters) {
+                    const voterDetails = await contract.getVoterDetails(voterAddress);
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${voterDetails.name}</td>
+                        <td>${voterDetails.voterId}</td>
+                        <td>${voterDetails.age}</td>
+                        <td>${voterDetails.gender}</td>
+                        <td>${voterDetails.phoneNumber}</td>
+                        <td>
+                            <span class="status-badge ${voterDetails.hasVoted ? 'status-voted' : 'status-not-voted'}">
+                                ${voterDetails.hasVoted ? 'Voted' : 'Not Voted'}
+                            </span>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                }
+            } catch (error) {
+                console.error("Error fetching voter details:", error);
+                alert("Error fetching voter details. Please make sure you're connected to the correct network.");
+            } finally {
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        // Execute when page loads
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize charts first
+            initializeCharts();
+            
+            // Then connect to blockchain and fetch data
+            const initialized = await initializeContract();
+            if (initialized) {
+                await displayVoters();
+            }
+        });
+    </script>
+</body>
+</html>
